@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>天津师范大学查课系统</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #f5f7fa;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .select-box {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .select-item {
+      flex: 1;
+      min-width: 200px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #555;
+    }
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 30px;
+      background-color: #409eff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #337ecc;
+    }
+
+    /* 核心：调整后的课表样式 */
+    .timetable-container {
+      margin-top: 30px;
+      overflow-x: auto;
+    }
+    .timetable {
+      display: grid;
+      /* 左侧节次列固定宽度，周几列设置最小宽度 */
+      grid-template-columns: 120px repeat(5, minmax(180px, 1fr));
+      border: 1px solid #eee;
+    }
+    .timetable-header {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #eee;
+      border-right: 1px solid #eee;
+      padding: 15px 10px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .time-cell {
+      background-color: #f8f9fa;
+      border-right: 1px solid #eee;
+      border-bottom: 1px solid #eee;
+      padding: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .course-cell {
+      border-bottom: 1px solid #eee;
+      border-right: 1px solid #eee;
+      min-height: 70px;
+      position: relative;
+      padding: 4px;
+    }
+    .course-card {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+      padding: 12px 8px;
+      color: #333;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .course-name {
+      font-weight: bold;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .no-data {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 30px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>天津师范大学查课系统</h1>
+
+    <div class="select-box">
+      <div class="select-item">
+        <label for="college">选择学院</label>
+        <select id="college">
+          <option value="">请选择学院</option>
+          <option value="dance">音乐与影视学院（舞蹈系）</option>
+          <option value="computer">计算机学院</option>
+        </select>
+      </div>
+
+      <div class="select-item">
+        <label for="major">选择专业</label>
+        <select id="major">
+          <option value="">请先选择学院</option>
+        </select>
+      </div>
+
+      <button id="queryBtn">查询</button>
+    </div>
+
+    <div id="timetableContainer" class="timetable-container"></div>
+  </div>
+
+  <script>
+    // 1. 学院与专业映射
+    const collegeMajorMap = {
+      dance: ["舞蹈编导"],
+      computer: ["计算机科学与技术", "软件工程"]
+    };
+
+    // 2. 课表数据
+    const timetableData = {
+      "舞蹈编导": [
+        { name: "单人舞编创技法", day: "周一", start: 1, end: 4, color: "#ccebff" },
+        { name: "单人舞编创技法", day: "周一", start: 2, end: 4, color: "#ccebff" },
+        { name: "芭蕾基本功训练 4-1", day: "周二", start: 1, end: 3, color: "#e6f7e6" },
+        { name: "芭蕾基本功训练 4-1", day: "周一", start: 6, end: 7, color: "#e6f7e6" },
+        { name: "现代舞 4-1", day: "周一", start: 10, end: 12, color: "#e6f7e6" },
+        { name: "人工智能导论", day: "周二", start: 6, end: 8, color: "#e6e6ff" },
+        { name: "习近平总书记关于社会主义文化建设重要论述", day: "周三", start: 3, end: 4, color: "#e6f7f7" },
+        { name: "军事理论", day: "周三", start: 6, end: 8, color: "#ffe6e6" },
+        { name: "芭蕾舞史", day: "周三", start: 10, end: 12, color: "#fff2e6" },
+        { name: "素材课6-1", day: "周四", start: 1, end: 2, color: "#ffe6f7" },
+        { name: "单人舞编创技法", day: "周四", start: 5, end: 6, color: "#ccebff" },
+        { name: "习近平总书记关于社会主义文化建设重要论述", day: "周四", start: 7, end: 8, color: "#e6f7f7" },
+        { name: "中国舞蹈史 2-1", day: "周四", start: 10, end: 12, color: "#f5f0e6" },
+        { name: "素材课6-1", day: "周五", start: 3, end: 5, color: "#ffe6f7" },
+        { name: "心理健康教育", day: "周五", start: 6, end: 8, color: "#ffcccc" }
+      ]
+    };
+
+    // 3. DOM元素
+    const collegeSelect = document.getElementById("college");
+    const majorSelect = document.getElementById("major");
+    const queryBtn = document.getElementById("queryBtn");
+    const timetableContainer = document.getElementById("timetableContainer");
+    const days = ["周一", "周二", "周三", "周四", "周五"];
+    const timeSlots = [
+      "1<br>08:00-08:45", "2<br>08:50-09:35", "3<br>09:50-10:35", "4<br>10:45-11:30",
+      "5<br>11:35-12:20", "6<br>14:00-14:45", "7<br>14:50-15:35", "8<br>15:55-16:40",
+      "9<br>16:45-17:30", "10<br>18:30-19:15", "11<br>19:20-20:05", "12<br>20:10-20:55"
+    ];
+
+    // 4. 学院选择联动专业
+    collegeSelect.addEventListener("change", function () {
+      const selectedCollege = this.value;
+      majorSelect.innerHTML = '<option value="">请选择专业</option>';
+      if (selectedCollege) {
+        collegeMajorMap[selectedCollege].forEach(major => {
+          const option = document.createElement("option");
+          option.value = major;
+          option.textContent = major;
+          majorSelect.appendChild(option);
+        });
+      }
+    });
+
+    // 5. 查询按钮点击事件
+    queryBtn.addEventListener("click", function () {
+      const selectedMajor = majorSelect.value;
+      if (!selectedMajor) {
+        alert("请先选择学院和专业！");
+        return;
+      }
+
+      const courses = timetableData[selectedMajor] || [];
+      if (courses.length === 0) {
+        timetableContainer.innerHTML = '<div class="no-data">暂无课程数据</div>';
+        return;
+      }
+
+      // 生成课表
+      let timetableHtml = '<div class="timetable">';
+      // 表头
+      timetableHtml += '<div class="timetable-header">节次</div>';
+      days.forEach(day => {
+        timetableHtml += `<div class="timetable-header">${day}</div>`;
+      });
+      // 逐行生成时间和课程
+      timeSlots.forEach((time, index) => {
+        const slotNum = index + 1;
+        // 左侧时间单元格
+        timetableHtml += `<div class="time-cell">${time}</div>`;
+        // 每天的课程单元格
+        days.forEach(day => {
+          timetableHtml += '<div class="course-cell">';
+          const course = courses.find(c => c.day === day && c.start <= slotNum && c.end >= slotNum);
+          if (course && slotNum === course.start) {
+            timetableHtml += `
+              <div class="course-card" style="background-color: ${course.color};">
+                <div class="course-name">${course.name}</div>
+              </div>
+            `;
+          }
+          timetableHtml += '</div>';
+        });
+      });
+      timetableHtml += '</div>';
+      timetableContainer.innerHTML = timetableHtml;
+    });
+  </script>
+</body>
+</html>
